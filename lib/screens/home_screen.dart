@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animation/constanins.dart';
 import 'package:flutter_animation/home_controller.dart';
+import 'package:flutter_animation/models/tyre_psi.dart';
 import 'package:flutter_animation/screens/components/battery_status.dart';
 import 'package:flutter_animation/screens/components/door_lock.dart';
 import 'package:flutter_animation/screens/components/temp_details.dart';
 import 'package:flutter_animation/screens/components/tesla_navigation_bottombar.dart';
+import 'package:flutter_animation/screens/components/tyre_psi_card.dart';
+import 'package:flutter_animation/screens/components/tyres.dart';
 import 'package:flutter_svg/svg.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,6 +32,16 @@ class _HomeScreenState extends State<HomeScreen>
   late Animation<double> _animationCarShift;
   late Animation<double> _animationTempShowInfo;
   late Animation<double> _animationCoolGlow;
+
+  late AnimationController _tyreAnimationController;
+  // Animation for each card;
+  late Animation<double> _animationTyre1Psi;
+  late Animation<double> _animationTyre2Psi;
+  late Animation<double> _animationTyre3Psi;
+  late Animation<double> _animationTyre4Psi;
+
+  // In Init toList tyrePsi Animations
+  late List<Animation<double>> _tyreAnimations;
 
   void setUpTempAnimationContoller() {
     // Duration of any animation by deafault 1500
@@ -71,11 +84,38 @@ class _HomeScreenState extends State<HomeScreen>
         parent: _batteryAnimationController, curve: const Interval(0.6, 1));
   }
 
+  void setUpTyreAnimation() {
+    // Duration of any animation by deafault 1200
+    _tyreAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    // Should complete in interval 0.34 - 1
+    // Should appear in line
+    // after each other
+    _animationTyre1Psi = CurvedAnimation(
+        parent: _tyreAnimationController, curve: const Interval(0.34, 0.5));
+    _animationTyre2Psi = CurvedAnimation(
+        parent: _tyreAnimationController, curve: const Interval(0.5, 0.66));
+    _animationTyre3Psi = CurvedAnimation(
+        parent: _tyreAnimationController, curve: const Interval(0.66, 0.82));
+    _animationTyre4Psi = CurvedAnimation(
+        parent: _tyreAnimationController, curve: const Interval(0.82, 1));
+  }
+
   @override
   void initState() {
     super.initState();
     setUpBatteryAnimation();
     setUpTempAnimationContoller();
+    setUpTyreAnimation();
+    // List of tyre animations
+    _tyreAnimations = [
+      _animationTyre1Psi,
+      _animationTyre2Psi,
+      _animationTyre3Psi,
+      _animationTyre4Psi,
+    ];
   }
 
   @override
@@ -83,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
     _batteryAnimationController.dispose();
     _tempAnimationController.dispose();
+    _tyreAnimationController.dispose();
   }
 
   @override
@@ -93,7 +134,8 @@ class _HomeScreenState extends State<HomeScreen>
         animation: Listenable.merge([
           _controller,
           _batteryAnimationController,
-          _tempAnimationController
+          _tempAnimationController,
+          _tyreAnimationController,
         ]),
         builder: (context, _) {
           return Scaffold(
@@ -116,6 +158,15 @@ class _HomeScreenState extends State<HomeScreen>
                   // Should go back
                   _tempAnimationController.reverse(from: 0.4);
                 }
+                if (index == 3) {
+                  _tyreAnimationController.forward();
+                } else if (_controller.selectedBottomTab == 3 && index != 3) {
+                  // Should go back
+                  _tyreAnimationController.reverse();
+                }
+                _controller.showTyreConroller(index);
+                _controller.tyreStatusController(index);
+                // Make sure you call it before [onBottomNavigatorTabChange]
                 _controller.onBottomNavigatorTabChange(index);
               },
             ),
@@ -216,13 +267,14 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     // Temperature
                     Positioned(
-                        height: constrains.maxHeight,
-                        width: constrains.maxWidth,
-                        top: 60 * (1 - _animationTempShowInfo.value),
-                        child: Opacity(
-                            opacity: _animationTempShowInfo.value,
-                            child: TempDetails(controller: _controller))),
-
+                      height: constrains.maxHeight,
+                      width: constrains.maxWidth,
+                      top: 60 * (1 - _animationTempShowInfo.value),
+                      child: Opacity(
+                        opacity: _animationTempShowInfo.value,
+                        child: TempDetails(controller: _controller),
+                      ),
+                    ),
                     // Car head/cool color
                     Positioned(
                         right: -180 * (1 - _animationCoolGlow.value),
@@ -239,6 +291,29 @@ class _HomeScreenState extends State<HomeScreen>
                                     key: UniqueKey(),
                                     width: 200,
                                   ))),
+                    // Tyre
+                    ...tyres(constrains, _controller.isShowTyre),
+
+                    if (_controller.isShowTyreStatus)
+                      GridView.builder(
+                          itemCount: 4,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: defaultPadding,
+                                  crossAxisSpacing: defaultPadding,
+                                  childAspectRatio: constrains.maxWidth /
+                                      constrains.maxHeight),
+                          itemBuilder: (context, index) =>
+                              // Scale Transition to animated open cards
+                              ScaleTransition(
+                                scale: _tyreAnimations[index],
+                                child: TyrePsiCard(
+                                  isBottomTwoTyre: index > 1,
+                                  tyrePsi: demoPsiList[index],
+                                ),
+                              )),
                   ],
                 );
               }),
