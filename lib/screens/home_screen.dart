@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen>
   final HomeController _controller = HomeController();
 
   late AnimationController _batteryAnimationController;
+
   late Animation<double> _animationBattery;
   late Animation<double> _animationBatteryStatus;
 
